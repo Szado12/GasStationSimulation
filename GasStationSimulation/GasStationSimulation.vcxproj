@@ -141,7 +141,9 @@
   <ItemGroup>
     <ClCompile Include="Car.cpp" />
     <ClCompile Include="CashRegister.cpp" />
+    <ClCompile Include="CashRegisterManager.cpp" />
     <ClCompile Include="Distributor.cpp" />
+    <ClCompile Include="DistributorManager.cpp" />
     <ClCompile Include="GasStationSimulation.cpp" />
     <ClCompile Include="Simulation.cpp" />
     <ClCompile Include="TankTruck.cpp" />
@@ -149,7 +151,9 @@
   <ItemGroup>
     <ClInclude Include="Car.h" />
     <ClInclude Include="CashRegister.h" />
+    <ClInclude Include="CashRegisterManager.h" />
     <ClInclude Include="Distributor.h" />
+    <ClInclude Include="DistributorManager.h" />
     <ClInclude Include="Simulation.h" />
     <ClInclude Include="TankTruck.h" />
   </ItemGroup>

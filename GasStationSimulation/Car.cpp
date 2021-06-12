@@ -1,8 +1,10 @@
 #include "Car.h"
 #include "Simulation.h"
 #include <string>
+#include <iostream>
 
-Car::Car(int id, int driveTime, int refuelTime, int payingTime, int fuel, Simulation* simulation)
+
+Car::Car(int id, int driveTime, int refuelTime, int payingTime, int fuel, DistributorManager* distributorManager, CashRegisterManager* cashRegisterManager)
 {
 	this->continueSimulation = true;
 	this->id = id;
@@ -12,87 +14,92 @@ Car::Car(int id, int driveTime, int refuelTime, int payingTime, int fuel, Simula
 	this->fuel = fuel;
 	this->maxFuel = fuel;
 	this->refueledFuel = 0;
-	this->simulation = simulation;
-	usedDistributor = nullptr;
+	this->distributorManager = distributorManager;
+	this->cashRegisterManager = cashRegisterManager;
+	this->usedDistributor = nullptr;
 }
 
 void Car::Refuel()
 {
-	state = "Waiting";
-	while(usedDistributor == nullptr and continueSimulation==true)
-		this_thread::sleep_for(chrono::milliseconds(100));
-	state = "Refueling";
-	usedDistributor->mutex.lock();
+	
+	state = 1;
+	std::unique_lock<std::mutex> lk(distributorManager->mutexDistributorManager);
+	while (!distributorManager->free and continueSimulation) distributorManager->condVarDistributorManager.wait(lk);
+	if(!continueSimulation){
+		lk.unlock();
+		return;
+	}
+	usedDistributor = distributorManager->AssignDistributorToCar(this->id);
+	lk.unlock();
+	state = 2;
+	usedDistributor->mutexDistributor.lock();
 	this->refueledFuel = usedDistributor->FuelTaken(this->maxFuel - this->fuel);
-	usedDistributor->mutex.unlock();
+	usedDistributor->mutexDistributor.unlock();
 	this->fuel += this->refueledFuel;
-	this_thread::sleep_for(chrono::milliseconds(this->refuelTime));
+	this_thread::sleep_for(chrono::milliseconds(this->refuelTime + int((float(rand()%40) -20.0)/100.0*this->refuelTime)));
 	
 }
 
 void Car::Pay()
 {
-	state = "Waiting";
-	while (usedCashRegister == nullptr and continueSimulation == true)
-		this_thread::sleep_for(chrono::milliseconds(100));
-	this->usedCashRegister->mutex.lock();
-	state = "Paying";
-	this_thread::sleep_for(chrono::milliseconds(this->payingTime));
-	this->usedDistributor->mutex.lock();
+	state = 3;
+	std::unique_lock<std::mutex> lk(cashRegisterManager->mutexCashRegisterManager);
+	while (!cashRegisterManager->free and continueSimulation) cashRegisterManager->condVarCashRegisterManager.wait(lk);
+	if(!continueSimulation){
+		lk.unlock();
+		return;
+	}
+	usedCashRegister = cashRegisterManager->AssignCashToCar();
+	lk.unlock();
+	state = 4;
+	this_thread::sleep_for(chrono::milliseconds(this->payingTime + int((float(rand()%40) -20.0)/100.0*this->payingTime)));
+	this->usedDistributor->mutexDistributor.lock();
 	this->usedDistributor->Unlock();
-	this->usedDistributor->mutex.unlock();
+	this->usedDistributor->mutexDistributor.unlock();
+	this->usedCashRegister->mutexCashRegister.lock();
 	this->usedCashRegister->Pay(this->refueledFuel);
 	this->usedCashRegister->Unlock();
-	this->usedCashRegister->mutex.unlock();
+	this->usedCashRegister->mutexCashRegister.unlock();
 	this->refueledFuel = 0;
+	distributorManager->mutexDistributorManager.lock();
+	distributorManager->ReturnDistributorCar(usedDistributor);
+	distributorManager->mutexDistributorManager.unlock();
+	cashRegisterManager->mutexCashRegisterManager.lock();
+	cashRegisterManager->ReturnCashRegister(usedCashRegister);
+	cashRegisterManager->mutexCashRegisterManager.unlock();
 	usedDistributor = nullptr;
 	usedCashRegister = nullptr;
 }
 
-void Car::WaitingForDistributor()
+
+statusCar Car::PrintStatus()
 {
-	this->simulation->mutex.lock();
-	this->simulation->AddCarToRefuelQueue(this);
-	this->simulation->mutex.unlock();
+	statusCar a;
+	a.id = this->id;
+	a.status = this->state;
+	a.distributorId = 0;
+	a.cashRegisterId = 0;
+	if (this->usedDistributor != nullptr)
+		a.distributorId = usedDistributor->getId();
+	if (this->usedCashRegister != nullptr)
+		a.cashRegisterId = usedCashRegister->getId();
+	return a;
 }
 
-void Car::WaitingForCashRegister()
-{
-	this->simulation->mutex.lock();
-	this->simulation->AddCarToPayQueue(this);
-	this->simulation->mutex.unlock();
-}
-
-string Car::PrintStatus()
-{
-	return  "CarId: " + to_string(id) + " State: " + state + "\n";
-}
-
-void Car::setDistributor(Distributor* usedDistributor)
-{
-	this->usedDistributor = usedDistributor;
-}
-
-void Car::setCashRegister(CashRegister* usedCashRegister)
-{
-	this->usedCashRegister = usedCashRegister;
-}
 
 void Car::Simulate()
 {
 	while (this->continueSimulation) {
 		Drive();
-		WaitingForDistributor();
 		Refuel();
-		WaitingForCashRegister();
 		Pay();
 	}
 }
 
 void Car::Drive()
 {
-	state = "Driving";
-	this_thread::sleep_for(chrono::milliseconds(this->driveTime));
+	state = 0;
+	this_thread::sleep_for(chrono::milliseconds(this->driveTime + int((float(rand()%40) -20.0)/100.0*this->driveTime)));
 	fuel = max(0, (fuel - rand()%maxFuel));
 }
 

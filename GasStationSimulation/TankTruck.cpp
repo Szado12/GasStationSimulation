@@ -1,15 +1,16 @@
 #include "TankTruck.h"
 #include "Simulation.h"
 #include <string>
-TankTruck::TankTruck(int id,int driveTime, int refuelTime, int refuelTruckTime, Simulation* simulation)
+TankTruck::TankTruck(int id,int driveTime, int refuelTime, int refuelTruckTime, DistributorManager* distributorManager)
 {
 	this->id = id;
 	this->driveTime = driveTime;
 	this->refuelTruckTime = refuelTruckTime;
 	this->refuelTime = refuelTime;
 	this->blocked = false;
+	this->continueSimulation = true;
 	this->usedDistributor = nullptr;
-	this->simulation = simulation;
+	this->distributorManager = distributorManager;
 }
 
 bool TankTruck::IsBlocked()
@@ -17,61 +18,84 @@ bool TankTruck::IsBlocked()
 	return blocked;
 }
 
-string TankTruck::PrintStatus()
+statusTruck TankTruck::PrintStatus()
 {
-	return "TankTruck " + to_string(this->id) + " status: " + this->status + "\n";
+	statusTruck a;
+	a.id = this->id;
+	a.distributorId = 0;
+	if (this->usedDistributor != nullptr)
+		a.distributorId = usedDistributor->getId();
+	a.state = state;
+	return a;
 }
 
-void TankTruck::CallTruck(Distributor* usedDistributor)
-{
-	blocked = true;
-	this->usedDistributor = usedDistributor;
-}
+
 
 void TankTruck::Simulate()
 {
-	while (true) 
+	while (continueSimulation)
 	{
 		Wait();
 		RefuelTruck();
 		Drive();
 		RefuelDistributor();
-		Drive();
+		DriveBack();
 	}
 }
 
 
 void TankTruck::Drive()
 {
-	this->status = "drive";
+	if (!continueSimulation)
+		return;
+	this->state = 2;
 	this_thread::sleep_for(chrono::milliseconds(this->driveTime));
 }
-
+void TankTruck::DriveBack()
+{
+	if (!continueSimulation)
+		return;
+	this->state = 4;
+	this_thread::sleep_for(chrono::milliseconds(this->driveTime));
+	blocked = false;
+}
 void TankTruck::RefuelDistributor()
 {
-	this->status = "refueling distributor";
-	usedDistributor->mutex.lock();
+	if (!continueSimulation)
+		return;
+	this->state = 3;
+	usedDistributor->mutexDistributor.lock();
 	usedDistributor->Lock();
 	usedDistributor->RefuelDistributor();
 	this_thread::sleep_for(chrono::milliseconds(this->refuelTime));
 	usedDistributor->Unlock();
-	simulation->mutex.lock();
-	simulation->RefuelDistributor(usedDistributor);
-	simulation->mutex.unlock();
-	usedDistributor->mutex.unlock();
-	blocked = false;
+	usedDistributor->mutexDistributor.unlock();
+	distributorManager->mutexDistributorManager.lock();
+	distributorManager->ReturnDistributorTruck(usedDistributor);
+	distributorManager->mutexDistributorManager.unlock();
 	usedDistributor = nullptr;
 }
 
 void TankTruck::RefuelTruck()
 {
-	this->status = "refueling truck";
+	if (!continueSimulation)
+		return;
+	this->state = 1;
 	this_thread::sleep_for(chrono::milliseconds(this->refuelTruckTime));
 }
 
 void TankTruck::Wait()
 {
-	this->status = "wait";
-	while(usedDistributor == nullptr)
-		this_thread::sleep_for(chrono::milliseconds(500));
+	this->state = 0;
+	std::unique_lock<std::mutex> lk(distributorManager->mutexDistributorManager);
+	while (!distributorManager->empty and continueSimulation) distributorManager->condVarDistributorManagerEmpty.wait(lk);
+	if(!continueSimulation)
+		return;
+	this->usedDistributor = distributorManager->AssignDistributorToTruck();
+	lk.unlock();
+}
+
+void TankTruck::EndSimulation()
+{
+	this->continueSimulation = false;
 }

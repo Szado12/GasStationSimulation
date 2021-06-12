@@ -6,7 +6,6 @@ bool CashRegister::Lock()
 	if (!this->blocked)
 	{
 		this->blocked = true;
-		this->state = "In use";
 		return true;
 	}
 	return false;
@@ -17,7 +16,6 @@ bool CashRegister::Unlock()
 	if (this->blocked)
 	{
 		this->blocked = false;
-		this->state = "free";
 		return true;
 	}
 	return false;
@@ -28,7 +26,6 @@ CashRegister::CashRegister(int id)
 	this->id = id;
 	this->money = 0;
 	this->carCounter = 0;
-	this->state = "free";
 }
 
 void CashRegister::Pay(int x)
@@ -37,8 +34,22 @@ void CashRegister::Pay(int x)
 	carCounter++;
 }
 
-string CashRegister::PrintState()
+int CashRegister::getId()
 {
-	return "CashRegister: " + to_string(id) + " Status: " + state + " Cars: " + to_string(carCounter) + " Money: " + to_string(money) + "\n";
+	return id;
+}
+
+bool CashRegister::Free()
+{
+	return !blocked;
+}
+
+CashRegisterState CashRegister::PrintState()
+{
+	CashRegisterState x;
+	x.carCounter = this->carCounter;
+	x.money = this->money;
+	x.state = this->blocked;
+	return x;
 }
 

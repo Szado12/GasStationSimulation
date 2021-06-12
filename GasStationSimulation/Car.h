@@ -3,7 +3,16 @@ class Simulation;
 #include <algorithm>
 #include "Distributor.h"
 #include "CashRegister.h"
+#include "DistributorManager.h"
+#include "CashRegisterManager.h"
 #include <atomic>
+
+struct statusCar {
+	int distributorId;
+	int cashRegisterId;
+	int status;
+	int id;
+};
 
 class Car
 {
@@ -11,25 +20,21 @@ class Car
 	int fuel;
 	int maxFuel;
 	int refueledFuel;
-	string state;
-	Simulation* simulation;
+	atomic<int> state;
+	DistributorManager* distributorManager;
+	CashRegisterManager* cashRegisterManager;
 	Distributor* usedDistributor;
 	CashRegister* usedCashRegister;
 	int driveTime;
 	int refuelTime;
 	int payingTime;
-	int payingCounter;
-	int refuelingCounter;
 	atomic<bool> continueSimulation;
 public:
-	Car(int id,int driveTime, int refuelTime, int payingTime, int fuel, Simulation* simulation);
+	mutex mutexCar;
+	Car(int id,int driveTime, int refuelTime, int payingTime, int fuel, DistributorManager* distributorManager, CashRegisterManager* cashRegisterManager);
 	void Refuel();
 	void Pay();
-	void WaitingForDistributor();
-	void WaitingForCashRegister();
-	string PrintStatus();
-	void setDistributor(Distributor* usedDistributor);
-	void setCashRegister(CashRegister* usedCashRegister);
+	statusCar PrintStatus();
 	void Simulate();
 	void Drive();
 	void EndSimulation();

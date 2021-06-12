@@ -3,19 +3,25 @@
 #include <mutex>
 #include <string>
 using namespace std;
+struct CashRegisterState{
+	bool state;
+	int money;
+	int carCounter;
+};
 class CashRegister
 {
 	int money;
 	int id;
 	int carCounter;
-	string state;
 	atomic<bool> blocked;
 public:
-	mutex mutex;
+	mutex mutexCashRegister;
 	bool Lock();
 	bool Unlock();
 	CashRegister(int id);
 	void Pay(int x);
-	string PrintState();
+	int getId();
+	bool Free();
+	CashRegisterState PrintState();
 };
 

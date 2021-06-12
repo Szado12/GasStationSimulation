@@ -8,15 +8,22 @@ Distributor::Distributor(int id)
 	this->empty = false;
 }
 
-string Distributor::PrintState()
+DistributorState Distributor::PrintState()
 {
-	string print = "Distributor: " + to_string(id) + " state: ";
+	DistributorState a;
 	if (blocked)
-		print += "blocked ";
+		a.state = 1;
+	else if (empty)
+		a.state = 2;
 	else
-		print += "free ";
-	print += "Current Fuel: " + to_string(fuel)+"\n";
-	return print;
+		a.state = 0;
+	a.fuel = this->fuel;
+	return a;
+}
+
+int Distributor::getId()
+{
+	return this->id;
 }
 
 bool Distributor::Lock()
@@ -40,9 +47,16 @@ bool Distributor::IsEmpty()
 	return this->empty;
 }
 
+bool Distributor::IsLocked()
+{
+	return blocked;
+}
+
 int Distributor::FuelTaken(int fuel)
 {
-	int fuelTaken = min(fuel, this->fuel);
+	int fuelTaken = fuel;
+	if(fuel > this->fuel)
+		fuelTaken = this->fuel;
 	this->fuel -= fuelTaken;
 	if (this->fuel == 0)
 		this->empty = true;
