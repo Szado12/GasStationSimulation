@@ -23,7 +23,7 @@ If all of the fuel pumps are taken or empty cars need to wait.
 If all cash registers are taken cars need to wait.
 
 ## Example of simulation
-![alt text](img/example.png)
+![alt text](example.png)
 
 [C*] - Car:
 * White text - driving
